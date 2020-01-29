@@ -1,4 +1,4 @@
-# arduino_skullfrakery
+# <h1 align=center>:skull: arduino_skullfrakery :skull:</h1>
 
 ## Run
 
