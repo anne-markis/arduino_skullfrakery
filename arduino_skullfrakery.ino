@@ -1,8 +1,3 @@
-/*********
-  Rui Santos
-  Complete project details at https://randomnerdtutorials.com  
-*********/
-
 #include <ESP8266WiFi.h>
 
 const String code_version = "v0.1.0";
@@ -21,6 +16,9 @@ unsigned long currentTime = millis();
 unsigned long previousTime = 0; 
 // Define timeout time in milliseconds (example: 2000ms = 2s)
 const long timeoutTime = 2000;
+
+const long intervalMS = 60000; // "on" pins will remain on for this long in milliseconds
+//unsigned long previousMillis = 0;
 
 void setup() {
   Serial.begin(115200);
@@ -65,7 +63,7 @@ void headerAndStyle(WiFiClient client) {
   client.println(".cellOff { color: #000099 }");
   client.println("td, tr {border-bottom: 1px solid #282828}");
   client.println("th {color: #585858}");
-  client.println("</style></head>");
+  client.println("</style><meta charset=\"UTF-8\"></head>");
 }
 
 void pinRow(WiFiClient client, int pin) {
@@ -75,14 +73,13 @@ void pinRow(WiFiClient client, int pin) {
 
   if (pinVal == LOW) {
     client.println("<td class=\"cellOff\"> LOW </td>");
+    client.println("<td><a href=\"/"+String(pin)+"/on\"><button class=\"buttonOn\">ON</button></a></td>");
+    client.println("<td>-</td>");
   } else {
     client.println("<td class=\"cellOn\"> HIGH </td>");
-  }
-  if (pinVal==LOW) {
-    client.println("<td><a href=\"/"+String(pin)+"/on\"><button class=\"buttonOn\">ON</button></a></td>");
-  } else {
     client.println("<td><a href=\"/"+String(pin)+"/off\"><button class=\"buttonOn buttonOff\">OFF</button></a></td>");
-  } 
+    client.println("<td>"+String(intervalMS)+" ms</td>");
+  }
   client.println("</tr>");
 }
 
@@ -99,7 +96,7 @@ void switcher(String header, int pin) {
 
 void loop(){
   WiFiClient client = server.available();   // Listen for incoming clients
-
+  
   if (client) {                             // If a new client connects,
     Serial.println("New Client.");          // print a message out in the serial port
     String currentLine = "";                // make a String to hold incoming data from the client
@@ -129,19 +126,21 @@ void loop(){
               
             // Display the HTML web page
             headerAndStyle(client);
-            client.println("<body><h1>SKULLFRAKERY " + code_version + "</h1>");
+            client.println("<body><h1>&#x1F480 SKULLFRAKERY " + code_version + " &#x1F480</h1>");
             
             // Pin status table
             client.println("<table style='width:100%'>");
             client.println("<tr>");
             client.println("<th>Thing</th>");
             client.println("<th>Value</th>");
-            client.println("<th>Toggle</th>"); // TBD
+            client.println("<th>Toggle</th>");
+            client.println("<th>Timer</th>");
             client.println("</tr>");
             client.println("<tr>");
             client.println("<td>A0</td>");
             client.println("<td>" + String(analogRead(A0)) + "v</td>");
-            client.println("<td>...</td>");
+            client.println("<td></td>");
+            client.println("<td></td>");
             client.println("</tr>");
             pinRow(client, 2);
             pinRow(client, 3);
