@@ -1,4 +1,4 @@
-# arduino_skullfrakery
+# :skull: arduino_skullfrakery :skull:
 
 ## Run
 
