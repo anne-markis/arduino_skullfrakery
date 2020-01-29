@@ -15,7 +15,7 @@ WiFiServer server(80);
 // Variable to store the HTTP request
 String header;
 
-// Auxiliar variables to store the current output state
+// TODO REMOVE
 String output5State = "off";
 String output4State = "off";
 
@@ -53,6 +53,31 @@ void setup() {
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
   server.begin();
+}
+
+void headerAndStyle(WiFiClient client) {
+  client.println("<!DOCTYPE html><html>");
+  client.println("<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
+  client.println("<link rel=\"icon\" href=\"data:,\">");
+  // CSS to style the on/off buttons 
+  // Feel free to change the background-color and font-size attributes to fit your preferences
+  client.println("<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}");
+  client.println(".button { background-color: #195B6A; border: none; color: white; padding: 15px 40px;"); // TODO rename to ON
+  client.println("text-decoration: none; font-size: 15px; margin: 2px; cursor: pointer;}");
+  client.println(".button2 {background-color: #77878A;}</style></head>"); // TODO rename to OFF
+}
+
+void pinRow(WiFiClient client, int pin) {
+  int pinVal = digitalRead(pin);
+  client.println("<tr>");
+  client.println("<td>Pin " + String(pin) + "</td>");
+  client.println("<td>" + String(pinVal) + "</td>");
+    if (pinVal==LOW) {
+    client.println("<td><a href=\"/"+String(pin)+"/on\"><button class=\"button\">ON</button></a></td>");
+  } else {
+    client.println("<td><a href=\"/"+String(pin)+"/off\"><button class=\"button button2\">OFF</button></a></td>");
+  } 
+  client.println("</tr>");
 }
 
 void loop(){
@@ -100,23 +125,13 @@ void loop(){
             }
             
             // Display the HTML web page
-            client.println("<!DOCTYPE html><html>");
-            client.println("<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
-            client.println("<link rel=\"icon\" href=\"data:,\">");
-            // CSS to style the on/off buttons 
-            // Feel free to change the background-color and font-size attributes to fit your preferences
-            client.println("<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}");
-            client.println(".button { background-color: #195B6A; border: none; color: white; padding: 16px 40px;");
-            client.println("text-decoration: none; font-size: 30px; margin: 2px; cursor: pointer;}");
-            client.println(".button2 {background-color: #77878A;}</style></head>");
-            
-            // Web Page Heading
+            headerAndStyle(client);
             client.println("<body><h1>SKULLFRAKERY " + code_version + "</h1>");
             
             // Display current state, and ON/OFF buttons for GPIO 5  
             client.println("<p>GPIO 5 - State " + output5State + "</p>");
             // If the output5State is off, it displays the ON button       
-            if (output5State=="off") {
+            if (digitalRead(5)==0) {
               client.println("<p><a href=\"/5/on\"><button class=\"button\">ON</button></a></p>");
             } else {
               client.println("<p><a href=\"/5/off\"><button class=\"button button2\">OFF</button></a></p>");
@@ -130,6 +145,31 @@ void loop(){
             } else {
               client.println("<p><a href=\"/4/off\"><button class=\"button button2\">OFF</button></a></p>");
             }
+
+            // Pin status table
+            client.println("<table style='width:100%'>");
+            client.println("<tr>");
+            client.println("<th>Thing</th>");
+            client.println("<th>Value</th>");
+            client.println("<th>Toggle</th>"); // TBD
+            client.println("</tr>");
+            client.println("<tr>");
+            client.println("<td>A0</td>");
+            client.println("<td>" + String(analogRead(A0)) + "</td>");
+            client.println("<td>...</td>");
+            client.println("</tr>");
+            pinRow(client, 1);
+            pinRow(client, 2);
+            pinRow(client, 3);
+            pinRow(client, 4);
+            pinRow(client, 5);
+            pinRow(client, 6);
+            pinRow(client, 7);
+            pinRow(client, 8);
+            client.println("</table>");
+
+
+            
             client.println("</body></html>");
             
             // The HTTP response ends with another blank line
@@ -152,4 +192,3 @@ void loop(){
     Serial.println("");
   }
 }
-
