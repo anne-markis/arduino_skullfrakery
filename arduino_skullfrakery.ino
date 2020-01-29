@@ -75,7 +75,7 @@ void pinRow(WiFiClient client, int pin) {
     client.println("<td class=\"cellOff\"> LOW </td>");
     client.println("<td><a href=\"/"+String(pin)+"/on\"><button class=\"buttonOn\">ON</button></a></td>");
     client.println("<td id=\"timer" + String(pin) + "\">-</td>");
-  } else {
+  } else { // TODO if timer not started
     client.println("<td class=\"cellOn\"> HIGH </td>");
     client.println("<td><a href=\"/"+String(pin)+"/off\"><button class=\"buttonOn buttonOff\">OFF</button></a></td>");
     client.println("<td id=\"timer" + String(pin) + "\">-</td>");
@@ -155,7 +155,7 @@ void loop(){
             client.println("<th>Thing</th>");
             client.println("<th>Value</th>");
             client.println("<th>Toggle</th>");
-            client.println("<th>Timer</th>");
+            client.println("<th>Timer (doesnt do anything)</th>");
             client.println("</tr>");
             client.println("<tr>");
             client.println("<td>A0</td>");
