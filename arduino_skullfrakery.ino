@@ -74,11 +74,11 @@ void pinRow(WiFiClient client, int pin) {
   if (pinVal == LOW) {
     client.println("<td class=\"cellOff\"> LOW </td>");
     client.println("<td><a href=\"/"+String(pin)+"/on\"><button class=\"buttonOn\">ON</button></a></td>");
-    client.println("<td id=\"timer\">-</td>"); // TODO dynamtic id name
+    client.println("<td id=\"timer" + String(pin) + "\">-</td>");
   } else {
     client.println("<td class=\"cellOn\"> HIGH </td>");
     client.println("<td><a href=\"/"+String(pin)+"/off\"><button class=\"buttonOn buttonOff\">OFF</button></a></td>");
-    client.println("<td id=\"timer\">"+String(intervalMS)+" ms</td>");
+    client.println("<td id=\"timer" + String(pin) + "\">-</td>");
   }
   client.println("</tr>");
 }
@@ -94,28 +94,24 @@ void switcher(String header, int pin) {
     }
 }
 
-void timerJS(WiFiClient client) {
-  client.println("<script>");
-  client.println("var countDownDate = new Date(new Date().getTime() + " + String(intervalMS) + ").getTime();");
-// Update the count down every 1 second
-  client.println("var x = setInterval(function() {");
-
-  // Get today's date and time
-  client.println("var now = new Date().getTime();");
-
-  // Find the distance between now and the count down date
-  client.println("var distance = countDownDate - now;");
-
-  // Time calculations for days, ho`urs, minutes and seconds
-  client.println("var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));");
-  client.println("var seconds = Math.floor((distance % (1000 * 60)) / 1000);");
-
-  // Display the result in the element with id="demo"
-  client.println("document.getElementById(\"timer\").innerHTML = minutes + \"m \" + seconds + \"s \";");
-
-  // If the count down is finished, write some text
-  client.println("if (distance < 0) { clearInterval(x); document.getElementById(\"timer\").innerHTML = \"EXPIRED\";}},1000)");
-  client.println("</script>");
+void timerJS(WiFiClient client, int pin) {
+  int pinVal = digitalRead(pin);
+  switch (pinVal) {
+    case HIGH:
+      client.println("<script>");
+      client.println("var countDownDate = new Date(new Date().getTime() + " + String(intervalMS) + ").getTime();");
+      client.println("var x = setInterval(function() {");
+      client.println("var now = new Date().getTime();");
+      client.println("var distance = countDownDate - now;");
+      client.println("var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));");
+      client.println("var seconds = Math.floor((distance % (1000 * 60)) / 1000);");
+      client.println("document.getElementById(\"timer" + String(pin) + "\").innerHTML = minutes + \"m \" + seconds + \"s \";");
+      client.println("if (distance < 0) { clearInterval(x); document.getElementById(\"timer" + String(pin) + "\").innerHTML = \"EXPIRED\";}},1000)");
+      client.println("</script>");
+      break;
+    case LOW:
+      break;
+  }
 }
 
 void loop(){
@@ -172,7 +168,12 @@ void loop(){
             pinRow(client, 4);
             pinRow(client, 5);
             client.println("</table>");
-            timerJS(client); // TODO
+            
+            timerJS(client, 2);
+            timerJS(client, 3);
+            timerJS(client, 4);
+            timerJS(client, 5);
+            
             client.println("</body></html>");
             
             // The HTTP response ends with another blank line
