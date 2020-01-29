@@ -74,11 +74,11 @@ void pinRow(WiFiClient client, int pin) {
   if (pinVal == LOW) {
     client.println("<td class=\"cellOff\"> LOW </td>");
     client.println("<td><a href=\"/"+String(pin)+"/on\"><button class=\"buttonOn\">ON</button></a></td>");
-    client.println("<td>-</td>");
+    client.println("<td id=\"timer\">-</td>"); // TODO dynamtic id name
   } else {
     client.println("<td class=\"cellOn\"> HIGH </td>");
     client.println("<td><a href=\"/"+String(pin)+"/off\"><button class=\"buttonOn buttonOff\">OFF</button></a></td>");
-    client.println("<td>"+String(intervalMS)+" ms</td>");
+    client.println("<td id=\"timer\">"+String(intervalMS)+" ms</td>");
   }
   client.println("</tr>");
 }
@@ -92,6 +92,33 @@ void switcher(String header, int pin) {
       Serial.println("Turning pin " + pinStr + " off");
       digitalWrite(pin, LOW);
     }
+}
+
+void timerJS(WiFiClient client) {
+  client.println("<script>");
+  client.println("var countDownDate = new Date(\"Jan 5, 2021 15:37:25\").getTime();");
+
+// Update the count down every 1 second
+  client.println("var x = setInterval(function() {");
+
+  // Get today's date and time
+  client.println("var now = new Date().getTime();");
+
+  // Find the distance between now and the count down date
+  client.println("var distance = countDownDate - now;");
+
+  // Time calculations for days, hours, minutes and seconds
+  client.println("var days = Math.floor(distance / (1000 * 60 * 60 * 24));");
+  client.println("var hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));");
+  client.println("var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));");
+  client.println("var seconds = Math.floor((distance % (1000 * 60)) / 1000);");
+
+  // Display the result in the element with id="demo"
+  client.println("document.getElementById(\"timer\").innerHTML = days + \"d \" + hours + \"h \" + minutes + \"m \" + seconds + \"s \";");
+
+  // If the count down is finished, write some text
+  client.println("if (distance < 0) { clearInterval(x); document.getElementById(\"demo\").innerHTML = \"EXPIRED\";}},1000)");
+  client.println("</script>");
 }
 
 void loop(){
@@ -126,6 +153,7 @@ void loop(){
               
             // Display the HTML web page
             headerAndStyle(client);
+            
             client.println("<body><h1>&#x1F480 SKULLFRAKERY " + code_version + " &#x1F480</h1>");
             
             // Pin status table
@@ -147,7 +175,7 @@ void loop(){
             pinRow(client, 4);
             pinRow(client, 5);
             client.println("</table>");
-
+            timerJS(client); // TODO
             client.println("</body></html>");
             
             // The HTTP response ends with another blank line
