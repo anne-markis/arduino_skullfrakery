@@ -15,14 +15,6 @@ WiFiServer server(80);
 // Variable to store the HTTP request
 String header;
 
-// TODO REMOVE
-String output5State = "off";
-String output4State = "off";
-
-// Assign output variables to GPIO pins
-const int output5 = 5;
-const int output4 = 4;
-
 // Current time
 unsigned long currentTime = millis();
 // Previous time
@@ -33,11 +25,17 @@ const long timeoutTime = 2000;
 void setup() {
   Serial.begin(115200);
   // Initialize the output variables as outputs
-  pinMode(output5, OUTPUT);
-  pinMode(output4, OUTPUT);
+  // Should be able to use pins 0-5, pins 6-11 are for connecting flash memory chip. 12-16 should also be free
+  pinMode(2, OUTPUT);
+  pinMode(3, OUTPUT);
+  pinMode(4, OUTPUT);
+  pinMode(5, OUTPUT);
+
   // Set outputs to LOW
-  digitalWrite(output5, LOW);
-  digitalWrite(output4, LOW);
+  digitalWrite(2, LOW);
+  digitalWrite(3, LOW);
+  digitalWrite(4, LOW);
+  digitalWrite(5, LOW);
 
   // Connect to Wi-Fi network with SSID and password
   Serial.print("Connecting to ");
@@ -62,9 +60,9 @@ void headerAndStyle(WiFiClient client) {
   // CSS to style the on/off buttons 
   // Feel free to change the background-color and font-size attributes to fit your preferences
   client.println("<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}");
-  client.println(".button { background-color: #195B6A; border: none; color: white; padding: 15px 40px;"); // TODO rename to ON
+  client.println(".buttonOn { background-color: #DAF7A6 ; border: none; color: white; padding: 15px 40px;");
   client.println("text-decoration: none; font-size: 15px; margin: 2px; cursor: pointer;}");
-  client.println(".button2 {background-color: #77878A;}</style></head>"); // TODO rename to OFF
+  client.println(".buttonOff {background-color: #fc886f;}</style></head>");
 }
 
 void pinRow(WiFiClient client, int pin) {
@@ -73,11 +71,22 @@ void pinRow(WiFiClient client, int pin) {
   client.println("<td>Pin " + String(pin) + "</td>");
   client.println("<td>" + String(pinVal) + "</td>");
     if (pinVal==LOW) {
-    client.println("<td><a href=\"/"+String(pin)+"/on\"><button class=\"button\">ON</button></a></td>");
+    client.println("<td><a href=\"/"+String(pin)+"/on\"><button class=\"buttonOn\">ON</button></a></td>");
   } else {
-    client.println("<td><a href=\"/"+String(pin)+"/off\"><button class=\"button button2\">OFF</button></a></td>");
+    client.println("<td><a href=\"/"+String(pin)+"/off\"><button class=\"buttonOn buttonOff\">OFF</button></a></td>");
   } 
   client.println("</tr>");
+}
+
+void switcher(String header, int pin) {
+   String pinStr = String(pin);
+   if (header.indexOf("GET /"+pinStr+"/on") >= 0) {
+      Serial.println("Turning pin " + pinStr + " on");
+      digitalWrite(pin, HIGH);
+    } else if (header.indexOf("GET /"+pinStr+"/off") >= 0) {
+      Serial.println("Turning pin " + pinStr + " off");
+      digitalWrite(pin, LOW);
+    }
 }
 
 void loop(){
@@ -104,48 +113,17 @@ void loop(){
             client.println("Content-type:text/html");
             client.println("Connection: close");
             client.println();
-            
-            // turns the GPIOs on and off
-            if (header.indexOf("GET /5/on") >= 0) {
-              Serial.println("GPIO 5 on");
-              output5State = "on";
-              digitalWrite(output5, HIGH);
-            } else if (header.indexOf("GET /5/off") >= 0) {
-              Serial.println("GPIO 5 off");
-              output5State = "off";
-              digitalWrite(output5, LOW);
-            } else if (header.indexOf("GET /4/on") >= 0) {
-              Serial.println("GPIO 4 on");
-              output4State = "on";
-              digitalWrite(output4, HIGH);
-            } else if (header.indexOf("GET /4/off") >= 0) {
-              Serial.println("GPIO 4 off");
-              output4State = "off";
-              digitalWrite(output4, LOW);
-            }
-            
+
+//            switcher(header, 1);  // doesnt work
+            switcher(header, 2);
+            switcher(header, 3);
+            switcher(header, 4);
+            switcher(header, 5);
+              
             // Display the HTML web page
             headerAndStyle(client);
             client.println("<body><h1>SKULLFRAKERY " + code_version + "</h1>");
             
-            // Display current state, and ON/OFF buttons for GPIO 5  
-            client.println("<p>GPIO 5 - State " + output5State + "</p>");
-            // If the output5State is off, it displays the ON button       
-            if (digitalRead(5)==0) {
-              client.println("<p><a href=\"/5/on\"><button class=\"button\">ON</button></a></p>");
-            } else {
-              client.println("<p><a href=\"/5/off\"><button class=\"button button2\">OFF</button></a></p>");
-            } 
-               
-            // Display current state, and ON/OFF buttons for GPIO 4  
-            client.println("<p>GPIO 4 - State " + output4State + "</p>");
-            // If the output4State is off, it displays the ON button       
-            if (output4State=="off") {
-              client.println("<p><a href=\"/4/on\"><button class=\"button\">ON</button></a></p>");
-            } else {
-              client.println("<p><a href=\"/4/off\"><button class=\"button button2\">OFF</button></a></p>");
-            }
-
             // Pin status table
             client.println("<table style='width:100%'>");
             client.println("<tr>");
@@ -158,18 +136,12 @@ void loop(){
             client.println("<td>" + String(analogRead(A0)) + "</td>");
             client.println("<td>...</td>");
             client.println("</tr>");
-            pinRow(client, 1);
             pinRow(client, 2);
             pinRow(client, 3);
             pinRow(client, 4);
             pinRow(client, 5);
-            pinRow(client, 6);
-            pinRow(client, 7);
-            pinRow(client, 8);
             client.println("</table>");
 
-
-            
             client.println("</body></html>");
             
             // The HTTP response ends with another blank line
