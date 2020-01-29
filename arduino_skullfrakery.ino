@@ -5,7 +5,7 @@
 
 #include <ESP8266WiFi.h>
 
-const String code_version = "v0.0.1";
+const String code_version = "v0.1.0";
 
 const char* ssid     = "LAN2.4";
 const char* password = "skookumchuck.10.18.2019";
@@ -57,20 +57,28 @@ void headerAndStyle(WiFiClient client) {
   client.println("<!DOCTYPE html><html>");
   client.println("<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
   client.println("<link rel=\"icon\" href=\"data:,\">");
-  // CSS to style the on/off buttons 
-  // Feel free to change the background-color and font-size attributes to fit your preferences
-  client.println("<style>html { font-family: Courier; display: inline-block; margin: 0px auto; text-align: center; background-color: black; color: white}");
-  client.println(".buttonOn { background-color: #95d159 ; border: none; color: white; padding: 15px 40px;");
-  client.println("text-decoration: none; font-size: 15px; margin: 2px; cursor: pointer;}");
-  client.println(".buttonOff {background-color: #fc886f;}</style></head>");
+
+  client.println("<style>html { font-family: Courier; display: inline-block; margin: 0px auto; text-align: center; background-color: black; color: white; font-size: 20px;}");
+  client.println(".buttonOn { font-family: Courier; background-color: #95d159 ; border-style: solid; border-color: white; color: white; margin: 2px; cursor: pointer;}");
+  client.println(".buttonOff {background-color: #fc886f;}");
+  client.println(".cellOn { color: #3399ff }");
+  client.println(".cellOff { color: #000099 }");
+  client.println("td, tr {border-bottom: 1px solid #282828}");
+  client.println("th {color: #585858}");
+  client.println("</style></head>");
 }
 
 void pinRow(WiFiClient client, int pin) {
   int pinVal = digitalRead(pin);
   client.println("<tr>");
   client.println("<td>Pin " + String(pin) + "</td>");
-  client.println("<td>" + String(pinVal) + "</td>");
-    if (pinVal==LOW) {
+
+  if (pinVal == LOW) {
+    client.println("<td class=\"cellOff\"> LOW </td>");
+  } else {
+    client.println("<td class=\"cellOn\"> HIGH </td>");
+  }
+  if (pinVal==LOW) {
     client.println("<td><a href=\"/"+String(pin)+"/on\"><button class=\"buttonOn\">ON</button></a></td>");
   } else {
     client.println("<td><a href=\"/"+String(pin)+"/off\"><button class=\"buttonOn buttonOff\">OFF</button></a></td>");
@@ -114,7 +122,6 @@ void loop(){
             client.println("Connection: close");
             client.println();
 
-//            switcher(header, 1);  // doesnt work
             switcher(header, 2);
             switcher(header, 3);
             switcher(header, 4);
