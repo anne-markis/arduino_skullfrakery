@@ -17,7 +17,7 @@ unsigned long previousTime = 0;
 // Define timeout time in milliseconds (example: 2000ms = 2s)
 const long timeoutTime = 2000;
 
-const long intervalMS = 60000; // "on" pins will remain on for this long in milliseconds
+const long intervalMS = 60000 * 5; // "on" pins will remain on for this long in milliseconds
 //unsigned long previousMillis = 0;
 
 void setup() {
@@ -96,8 +96,7 @@ void switcher(String header, int pin) {
 
 void timerJS(WiFiClient client) {
   client.println("<script>");
-  client.println("var countDownDate = new Date(\"Jan 5, 2021 15:37:25\").getTime();");
-
+  client.println("var countDownDate = new Date(new Date().getTime() + " + String(intervalMS) + ").getTime();");
 // Update the count down every 1 second
   client.println("var x = setInterval(function() {");
 
@@ -107,17 +106,15 @@ void timerJS(WiFiClient client) {
   // Find the distance between now and the count down date
   client.println("var distance = countDownDate - now;");
 
-  // Time calculations for days, hours, minutes and seconds
-  client.println("var days = Math.floor(distance / (1000 * 60 * 60 * 24));");
-  client.println("var hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));");
+  // Time calculations for days, ho`urs, minutes and seconds
   client.println("var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));");
   client.println("var seconds = Math.floor((distance % (1000 * 60)) / 1000);");
 
   // Display the result in the element with id="demo"
-  client.println("document.getElementById(\"timer\").innerHTML = days + \"d \" + hours + \"h \" + minutes + \"m \" + seconds + \"s \";");
+  client.println("document.getElementById(\"timer\").innerHTML = minutes + \"m \" + seconds + \"s \";");
 
   // If the count down is finished, write some text
-  client.println("if (distance < 0) { clearInterval(x); document.getElementById(\"demo\").innerHTML = \"EXPIRED\";}},1000)");
+  client.println("if (distance < 0) { clearInterval(x); document.getElementById(\"timer\").innerHTML = \"EXPIRED\";}},1000)");
   client.println("</script>");
 }
 
