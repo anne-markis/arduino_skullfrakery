@@ -59,8 +59,8 @@ void headerAndStyle(WiFiClient client) {
   client.println("<link rel=\"icon\" href=\"data:,\">");
   // CSS to style the on/off buttons 
   // Feel free to change the background-color and font-size attributes to fit your preferences
-  client.println("<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}");
-  client.println(".buttonOn { background-color: #DAF7A6 ; border: none; color: white; padding: 15px 40px;");
+  client.println("<style>html { font-family: Courier; display: inline-block; margin: 0px auto; text-align: center; background-color: black; color: white}");
+  client.println(".buttonOn { background-color: #95d159 ; border: none; color: white; padding: 15px 40px;");
   client.println("text-decoration: none; font-size: 15px; margin: 2px; cursor: pointer;}");
   client.println(".buttonOff {background-color: #fc886f;}</style></head>");
 }
@@ -133,7 +133,7 @@ void loop(){
             client.println("</tr>");
             client.println("<tr>");
             client.println("<td>A0</td>");
-            client.println("<td>" + String(analogRead(A0)) + "</td>");
+            client.println("<td>" + String(analogRead(A0)) + "v</td>");
             client.println("<td>...</td>");
             client.println("</tr>");
             pinRow(client, 2);
