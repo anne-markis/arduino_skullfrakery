@@ -11,3 +11,4 @@
 * Go to IP printed in monitor
 
   https://www.arduino.cc/en/tutorial/PWM
+  https://www.arduino.cc/en/Tutorial/SecretsOfArduinoPWM
