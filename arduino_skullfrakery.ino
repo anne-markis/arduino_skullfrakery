@@ -1,6 +1,6 @@
 #include <ESP8266WiFi.h>
 
-const String code_version = "v0.1.0";
+const String code_version = "v0.2.0";
 
 const char* ssid     = "LAN2.4";
 const char* password = "skookumchuck.10.18.2019";
@@ -13,7 +13,7 @@ String header;
 // Current time
 unsigned long currentTime = millis();
 // Previous time
-unsigned long previousTime = 0; 
+unsigned long previousTime = 0;
 // Define timeout time in milliseconds (example: 2000ms = 2s)
 const long timeoutTime = 2000;
 
@@ -30,10 +30,10 @@ void setup() {
   pinMode(5, OUTPUT);
 
   // Set outputs to LOW
-  digitalWrite(2, LOW);
-  digitalWrite(3, LOW);
-  digitalWrite(4, LOW);
-  digitalWrite(5, LOW);
+//  digitalWrite(2, LOW);
+//  digitalWrite(3, LOW);
+//  digitalWrite(4, LOW);
+//  digitalWrite(5, LOW);
 
   // Connect to Wi-Fi network with SSID and password
   Serial.print("Connecting to ");
@@ -68,30 +68,54 @@ void headerAndStyle(WiFiClient client) {
 
 void pinRow(WiFiClient client, int pin) {
   int pinVal = digitalRead(pin);
+  int pinValPWM = analogRead(pin);
+  String enableInput = "disabled";
   client.println("<tr>");
   client.println("<td>Pin " + String(pin) + "</td>");
 
   if (pinVal == LOW) {
     client.println("<td class=\"cellOff\"> LOW </td>");
-    client.println("<td><a href=\"/"+String(pin)+"/on\"><button class=\"buttonOn\">ON</button></a></td>");
-    client.println("<td id=\"timer" + String(pin) + "\">-</td>");
+    client.println("<td><a href=\"/" + String(pin) + "/on\"><button class=\"buttonOn\">ON</button></a></td>");
   } else { // TODO if timer not started
+    enableInput = ""; // TODO recolor input form
     client.println("<td class=\"cellOn\"> HIGH </td>");
-    client.println("<td><a href=\"/"+String(pin)+"/off\"><button class=\"buttonOn buttonOff\">OFF</button></a></td>");
-    client.println("<td id=\"timer" + String(pin) + "\">-</td>");
+    client.println("<td><a href=\"/" + String(pin) + "/off\"><button class=\"buttonOn buttonOff\">OFF</button></a></td>");
   }
+  client.println("<td id=\"pwmtd" + String(pin) + "\">");
+  client.println("<form action=\"/\">");
+  client.println("<input " + enableInput + " type=\"number\" name=\"pwm" + String(pin) + "\" min=\"0\" max=\"1023\" step=\"100\" value=\"" + String(pinValPWM) + "\">");
+  client.println("</form>");
+  client.println("</td>");
   client.println("</tr>");
 }
 
 void switcher(String header, int pin) {
-   String pinStr = String(pin);
-   if (header.indexOf("GET /"+pinStr+"/on") >= 0) {
-      Serial.println("Turning pin " + pinStr + " on");
-      digitalWrite(pin, HIGH);
-    } else if (header.indexOf("GET /"+pinStr+"/off") >= 0) {
-      Serial.println("Turning pin " + pinStr + " off");
-      digitalWrite(pin, LOW);
+  Serial.println(header);
+  String pinStr = String(pin);
+  if (header.indexOf("GET /" + pinStr + "/on") >= 0) {
+    Serial.println("Turning pin " + pinStr + " on");
+    digitalWrite(pin, HIGH);
+  } else if (header.indexOf("GET /" + pinStr + "/off") >= 0) {
+    Serial.println("Turning pin " + pinStr + " off");
+    digitalWrite(pin, LOW);
+  }
+
+  // Duty cycle input by pin
+  if (header.indexOf("?pwm" + pinStr) >= 0) {
+    const char* headerCStr = header.c_str();
+    char* headDup =  strdup(headerCStr); // cannot strtok on a const char*
+    char* token = strtok(headDup, "="); // first token is what comes before the '='
+    token = strtok(NULL, " "); // Not really safe
+    int pwmInt = atoi(token);
+    if (pwmInt > 1023) {
+      pwmInt = 1023;
+    } else if (pwmInt < 0) {
+      pwmInt = 0;
     }
+    digitalWrite(pin, HIGH);
+    analogWrite(pin, pwmInt);
+    Serial.println("Set pin " + pinStr + " to " + String(pwmInt));
+  }
 }
 
 void timerJS(WiFiClient client, int pin) {
@@ -114,16 +138,16 @@ void timerJS(WiFiClient client, int pin) {
   }
 }
 
-void loop(){
+void loop() {
   WiFiClient client = server.available();   // Listen for incoming clients
-  
+
   if (client) {                             // If a new client connects,
     Serial.println("New Client.");          // print a message out in the serial port
     String currentLine = "";                // make a String to hold incoming data from the client
     currentTime = millis();
     previousTime = currentTime;
     while (client.connected() && currentTime - previousTime <= timeoutTime) { // loop while the client's connected
-      currentTime = millis();         
+      currentTime = millis();
       if (client.available()) {             // if there's bytes to read from the client,
         char c = client.read();             // read a byte, then
         Serial.write(c);                    // print it out the serial monitor
@@ -143,39 +167,34 @@ void loop(){
             switcher(header, 3);
             switcher(header, 4);
             switcher(header, 5);
-              
+
             // Display the HTML web page
             headerAndStyle(client);
-            
-            client.println("<body><h1>&#x1F480 SKULLFRAKERY " + code_version + " &#x1F480</h1>");
-            
+
+            // TODO link style none
+            client.println("<body><h1>&#x1F480 <a href=\"/\">SKULLFRAKERY " + code_version + "</a> &#x1F480</h1>");
+
             // Pin status table
             client.println("<table style='width:100%'>");
             client.println("<tr>");
             client.println("<th>Thing</th>");
             client.println("<th>Value</th>");
             client.println("<th>Toggle</th>");
-            client.println("<th>Timer (doesnt do anything)</th>");
-            client.println("</tr>");
-            client.println("<tr>");
-            client.println("<td>A0</td>");
-            client.println("<td>" + String(analogRead(A0)) + "v</td>");
-            client.println("<td></td>");
-            client.println("<td></td>");
+            client.println("<th>Duty Cycle</th>");
             client.println("</tr>");
             pinRow(client, 2);
             pinRow(client, 3);
             pinRow(client, 4);
             pinRow(client, 5);
             client.println("</table>");
-            
-            timerJS(client, 2);
-            timerJS(client, 3);
-            timerJS(client, 4);
-            timerJS(client, 5);
-            
+
+            //            timerJS(client, 2);
+            //            timerJS(client, 3);
+            //            timerJS(client, 4);
+            //            timerJS(client, 5);
+
             client.println("</body></html>");
-            
+
             // The HTTP response ends with another blank line
             client.println();
             // Break out of the while loop
