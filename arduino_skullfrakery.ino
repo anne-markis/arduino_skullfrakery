@@ -5,6 +5,7 @@ const String code_version = "v0.2.0";
 const char* ssid     = "LAN2.4";
 const char* password = "skookumchuck.10.18.2019";
 
+
 WiFiServer server(80);
 
 // Variable to store the HTTP request
@@ -27,13 +28,13 @@ void setup() {
   pinMode(2, OUTPUT);
   pinMode(3, OUTPUT);
   pinMode(4, OUTPUT);
-  pinMode(5, OUTPUT);
+  pinMode(5, INPUT);
 
   // Set outputs to LOW
-//  digitalWrite(2, LOW);
-//  digitalWrite(3, LOW);
-//  digitalWrite(4, LOW);
-//  digitalWrite(5, LOW);
+  //  digitalWrite(2, LOW);
+  //  digitalWrite(3, LOW);
+  //  digitalWrite(4, LOW);
+  //  digitalWrite(5, LOW);
 
   // Connect to Wi-Fi network with SSID and password
   Serial.print("Connecting to ");
@@ -69,7 +70,7 @@ void headerAndStyle(WiFiClient client) {
 void pinRow(WiFiClient client, int pin) {
   int pinVal = digitalRead(pin);
   int pinValPWM = analogRead(pin);
-  String enableInput = "disabled";
+  String enableInput = "";// "disabled";
   client.println("<tr>");
   client.println("<td>Pin " + String(pin) + "</td>");
 
@@ -90,6 +91,7 @@ void pinRow(WiFiClient client, int pin) {
 }
 
 void switcher(String header, int pin) {
+  Serial.println("switcher@" + String(pin) + "==>" + header);
   Serial.println(header);
   String pinStr = String(pin);
   if (header.indexOf("GET /" + pinStr + "/on") >= 0) {
@@ -100,8 +102,9 @@ void switcher(String header, int pin) {
     digitalWrite(pin, LOW);
   }
 
-  // Duty cycle input by pin
+  // Duty cycle input by pin // ?pwm5=299
   if (header.indexOf("?pwm" + pinStr) >= 0) {
+    Serial.println("Checking PWM " + pinStr);
     const char* headerCStr = header.c_str();
     char* headDup =  strdup(headerCStr); // cannot strtok on a const char*
     char* token = strtok(headDup, "="); // first token is what comes before the '='
@@ -114,7 +117,10 @@ void switcher(String header, int pin) {
     }
     digitalWrite(pin, HIGH);
     analogWrite(pin, pwmInt);
+
     Serial.println("Set pin " + pinStr + " to " + String(pwmInt));
+    const int testME = analogRead(pin);
+    Serial.println("TEST ME " + String(testME));
   }
 }
 
@@ -192,6 +198,8 @@ void loop() {
             //            timerJS(client, 3);
             //            timerJS(client, 4);
             //            timerJS(client, 5);
+
+
 
             client.println("</body></html>");
 
