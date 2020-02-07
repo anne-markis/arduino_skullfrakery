@@ -66,6 +66,7 @@ void headerAndStyle(WiFiClient client) {
   client.println(".cellOff { color: #000099 }");
   client.println("td, tr {border-bottom: 1px solid #282828}");
   client.println("th {color: #585858}");
+  client.println(".numberInput {font-size: 20px; height: 100}");
   client.println("</style><meta charset=\"UTF-8\"></head>");
 }
 
@@ -79,14 +80,14 @@ void pinRow(WiFiClient client, int pin) {
   if (pinValPWM == 0) {
     client.println("<td class=\"cellOff\"> LOW </td>");
     client.println("<td><a href=\"/" + String(pin) + "/on\"><button class=\"buttonOn\">ON</button></a></td>");
-  } else { // TODO if timer not started
+  } else {
     enableInput = ""; // TODO recolor input form
     client.println("<td class=\"cellOn\"> HIGH </td>");
     client.println("<td><a href=\"/" + String(pin) + "/off\"><button class=\"buttonOn buttonOff\">OFF</button></a></td>");
   }
   client.println("<td id=\"pwmtd" + String(pin) + "\">");
   client.println("<form action=\"/\">");
-  client.println("<input " + enableInput + " type=\"number\" name=\"pwm" + String(pin) + "\" min=\"0\" max=\"" + String(MAX_PWM) + "\" step=\"1\" value=\"" + String(pinValPWM) + "\">");
+  client.println("<input class=\"numberInput\"" + enableInput + " type=\"number\" name=\"pwm" + String(pin) + "\" min=\"0\" max=\"" + String(MAX_PWM) + "\" step=\"1\" value=\"" + String(pinValPWM) + "\">");
   client.println("</form>");
   client.println("</td>");
   client.println("</tr>");
