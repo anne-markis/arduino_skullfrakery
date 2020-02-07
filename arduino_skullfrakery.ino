@@ -1,10 +1,17 @@
 #include <ESP8266WiFi.h>
 
-const String code_version = "v0.2.0";
+#define MAX_PWM 1023 // TODO redundant with PWMRANGE
+#define MIN_PWM 0
+
+#define PIN4 D2 // Kind of unnecessary but cool: https://github.com/esp8266/Arduino/blob/master/variants/nodemcu/pins_arduino.h
+#define NUM_PINS 16 // For pin state array
+
+const String code_version = "v0.3.0";
 
 const char* ssid     = "LAN2.4";
 const char* password = "skookumchuck.10.18.2019";
 
+int pinState[NUM_PINS]; // TODO consider struct type instead of int
 
 WiFiServer server(80);
 
@@ -19,7 +26,6 @@ unsigned long previousTime = 0;
 const long timeoutTime = 2000;
 
 const long intervalMS = 60000 * 5; // "on" pins will remain on for this long in milliseconds
-//unsigned long previousMillis = 0;
 
 void setup() {
   Serial.begin(115200);
@@ -27,14 +33,10 @@ void setup() {
   // Should be able to use pins 0-5, pins 6-11 are for connecting flash memory chip. 12-16 should also be free
   pinMode(2, OUTPUT);
   pinMode(3, OUTPUT);
-  pinMode(4, OUTPUT);
-  pinMode(5, INPUT);
+  pinMode(PIN4, OUTPUT);
+  pinMode(5, OUTPUT);
 
-  // Set outputs to LOW
-  //  digitalWrite(2, LOW);
-  //  digitalWrite(3, LOW);
-  //  digitalWrite(4, LOW);
-  //  digitalWrite(5, LOW);
+  analogWriteRange(PWMRANGE);
 
   // Connect to Wi-Fi network with SSID and password
   Serial.print("Connecting to ");
@@ -68,13 +70,13 @@ void headerAndStyle(WiFiClient client) {
 }
 
 void pinRow(WiFiClient client, int pin) {
-  int pinVal = digitalRead(pin);
-  int pinValPWM = analogRead(pin);
-  String enableInput = "";// "disabled";
+  int pinValPWM = readPinState(pin);
+
+  String enableInput = "disabled";
   client.println("<tr>");
   client.println("<td>Pin " + String(pin) + "</td>");
 
-  if (pinVal == LOW) {
+  if (pinValPWM == 0) {
     client.println("<td class=\"cellOff\"> LOW </td>");
     client.println("<td><a href=\"/" + String(pin) + "/on\"><button class=\"buttonOn\">ON</button></a></td>");
   } else { // TODO if timer not started
@@ -84,63 +86,71 @@ void pinRow(WiFiClient client, int pin) {
   }
   client.println("<td id=\"pwmtd" + String(pin) + "\">");
   client.println("<form action=\"/\">");
-  client.println("<input " + enableInput + " type=\"number\" name=\"pwm" + String(pin) + "\" min=\"0\" max=\"1023\" step=\"100\" value=\"" + String(pinValPWM) + "\">");
+  client.println("<input " + enableInput + " type=\"number\" name=\"pwm" + String(pin) + "\" min=\"0\" max=\"" + String(MAX_PWM) + "\" step=\"1\" value=\"" + String(pinValPWM) + "\">");
   client.println("</form>");
   client.println("</td>");
   client.println("</tr>");
 }
 
+void setPinState(int pin, int pwmVal) {
+  pinState[pin] = pwmVal;
+  analogWrite(pin, pwmVal);
+}
+
+int readPinState(int pin) {
+  return pinState[pin];
+}
+
 void switcher(String header, int pin) {
-  Serial.println("switcher@" + String(pin) + "==>" + header);
   Serial.println(header);
+
   String pinStr = String(pin);
+  bool isPWMSet = header.indexOf("?pwm" + pinStr) >= 0 && header.indexOf("?pwm" + pinStr) < 100; // avoid 'referer' in header from triggering this
+
+
   if (header.indexOf("GET /" + pinStr + "/on") >= 0) {
-    Serial.println("Turning pin " + pinStr + " on");
-    digitalWrite(pin, HIGH);
+    setPinState(pin, MAX_PWM);
   } else if (header.indexOf("GET /" + pinStr + "/off") >= 0) {
-    Serial.println("Turning pin " + pinStr + " off");
-    digitalWrite(pin, LOW);
+    setPinState(pin, MIN_PWM);
   }
 
-  // Duty cycle input by pin // ?pwm5=299
-  if (header.indexOf("?pwm" + pinStr) >= 0) {
-    Serial.println("Checking PWM " + pinStr);
+  // Duty cycle input by pin
+  if (isPWMSet) {
     const char* headerCStr = header.c_str();
     char* headDup =  strdup(headerCStr); // cannot strtok on a const char*
     char* token = strtok(headDup, "="); // first token is what comes before the '='
     token = strtok(NULL, " "); // Not really safe
     int pwmInt = atoi(token);
-    if (pwmInt > 1023) {
-      pwmInt = 1023;
-    } else if (pwmInt < 0) {
-      pwmInt = 0;
-    }
-    digitalWrite(pin, HIGH);
-    analogWrite(pin, pwmInt);
 
-    Serial.println("Set pin " + pinStr + " to " + String(pwmInt));
-    const int testME = analogRead(pin);
-    Serial.println("TEST ME " + String(testME));
+    Serial.println("Setting pin " + pinStr + " to " + String(pwmInt));
+    setPinState(pin, pwmInt);
+  }
+}
+
+void pinDebug(int pin, int meta) {
+  int analogReadVal = readPinState(pin);
+  Serial.println(String(meta) + " ====> " + String(pin) + ": a(" + String(analogReadVal) + ")");
+}
+
+void  pinStateDebug() {
+  for (int i = 0; i < NUM_PINS ; i++) {
+    Serial.println(String(i) + ": + " + String(pinState[i]));
   }
 }
 
 void timerJS(WiFiClient client, int pin) {
-  int pinVal = digitalRead(pin);
-  switch (pinVal) {
-    case HIGH:
-      client.println("<script>");
-      client.println("var countDownDate = new Date(new Date().getTime() + " + String(intervalMS) + ").getTime();");
-      client.println("var x = setInterval(function() {");
-      client.println("var now = new Date().getTime();");
-      client.println("var distance = countDownDate - now;");
-      client.println("var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));");
-      client.println("var seconds = Math.floor((distance % (1000 * 60)) / 1000);");
-      client.println("document.getElementById(\"timer" + String(pin) + "\").innerHTML = minutes + \"m \" + seconds + \"s \";");
-      client.println("if (distance < 0) { clearInterval(x); document.getElementById(\"timer" + String(pin) + "\").innerHTML = \"EXPIRED\";}},1000)");
-      client.println("</script>");
-      break;
-    case LOW:
-      break;
+  int pinVal = readPinState(pin);
+  if (pinVal > 0) {
+    client.println("<script>");
+    client.println("var countDownDate = new Date(new Date().getTime() + " + String(intervalMS) + ").getTime();");
+    client.println("var x = setInterval(function() {");
+    client.println("var now = new Date().getTime();");
+    client.println("var distance = countDownDate - now;");
+    client.println("var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));");
+    client.println("var seconds = Math.floor((distance % (1000 * 60)) / 1000);");
+    client.println("document.getElementById(\"timer" + String(pin) + "\").innerHTML = minutes + \"m \" + seconds + \"s \";");
+    client.println("if (distance < 0) { clearInterval(x); document.getElementById(\"timer" + String(pin) + "\").innerHTML = \"EXPIRED\";}},1000)");
+    client.println("</script>");
   }
 }
 
@@ -171,7 +181,7 @@ void loop() {
 
             switcher(header, 2);
             switcher(header, 3);
-            switcher(header, 4);
+            switcher(header, PIN4);
             switcher(header, 5);
 
             // Display the HTML web page
@@ -190,17 +200,9 @@ void loop() {
             client.println("</tr>");
             pinRow(client, 2);
             pinRow(client, 3);
-            pinRow(client, 4);
+            pinRow(client, PIN4);
             pinRow(client, 5);
             client.println("</table>");
-
-            //            timerJS(client, 2);
-            //            timerJS(client, 3);
-            //            timerJS(client, 4);
-            //            timerJS(client, 5);
-
-
-
             client.println("</body></html>");
 
             // The HTTP response ends with another blank line
