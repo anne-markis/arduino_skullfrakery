@@ -6,7 +6,7 @@
 #define PIN4 D2 // Kind of unnecessary but cool: https://github.com/esp8266/Arduino/blob/master/variants/nodemcu/pins_arduino.h
 #define NUM_PINS 16 // For pin state array
 
-const String code_version = "v0.3.0";
+const String code_version = "v0.4.0";
 
 const char* ssid     = "LAN2.4";
 const char* password = "skookumchuck.10.18.2019";
@@ -66,7 +66,42 @@ void headerAndStyle(WiFiClient client) {
   client.println(".cellOff { color: #000099 }");
   client.println("td, tr {border-bottom: 1px solid #282828}");
   client.println("th {color: #585858}");
-  client.println(".numberInput {font-size: 20px; height: 100}");
+  client.println(".numberInput {font-size: 15px}"); // TODO reduce width
+  // https://www.w3schools.com/howto/howto_js_rangeslider.asp
+  char *sliderCss = "\
+  .slidecontainer { \
+                    width: 70%;\
+                  }\
+                    .slider {\
+                    -webkit-appearance: none;\
+                    appearance: none;\
+                    width: 70%; \
+                    height: 25px; \
+                    background: #d3d3d3; \
+                    outline: none; \
+                    opacity: 0.7;\
+                    -webkit-transition: .2s;\
+                    transition: opacity .2s;\
+                  }\
+                    .slider:hover {\
+                    opacity: 1;\
+                  }\
+                    .slider::-webkit-slider-thumb {\
+                    -webkit-appearance: none;\
+                    appearance: none;\
+                    width: 25px;\
+                    height: 25px;\
+                    background: #4CAF50;\
+                    cursor: pointer; \
+                  }\
+                    .slider::-moz-range-thumb {\
+                    width: 25px;\
+                    height: 25px; \
+                    background: #4CAF50; \
+                    cursor: pointer;\
+                  }\
+                    ";
+  client.println(String(sliderCss));
   client.println("</style><meta charset=\"UTF-8\"></head>");
 }
 
@@ -77,18 +112,26 @@ void pinRow(WiFiClient client, int pin) {
   client.println("<tr>");
   client.println("<td>Pin " + String(pin) + "</td>");
 
+  // on/off buttons
   if (pinValPWM == 0) {
-    client.println("<td class=\"cellOff\"> LOW </td>");
-    client.println("<td><a href=\"/" + String(pin) + "/on\"><button class=\"buttonOn\">ON</button></a></td>");
+    client.println("<td><a href=\"/" + String(pin) + "/on\"><button id=\"button"+ String(pin) +"\" class=\"buttonOn\">ON</button></a></td>");
   } else {
     enableInput = ""; // TODO recolor input form
-    client.println("<td class=\"cellOn\"> HIGH </td>");
-    client.println("<td><a href=\"/" + String(pin) + "/off\"><button class=\"buttonOn buttonOff\">OFF</button></a></td>");
+    client.println("<td><a href=\"/" + String(pin) + "/off\"><button id=\"button" + String(pin) +"\" class=\"buttonOn buttonOff\">OFF</button></a></td>");
   }
+
+  // raw text input
   client.println("<td id=\"pwmtd" + String(pin) + "\">");
   client.println("<form action=\"/\">");
-  client.println("<input class=\"numberInput\"" + enableInput + " type=\"number\" name=\"pwm" + String(pin) + "\" min=\"0\" max=\"" + String(MAX_PWM) + "\" step=\"1\" value=\"" + String(pinValPWM) + "\">");
+  client.println("<input id=\"numInput" + String(pin) + "\" class=\"numberInput\"" + enableInput + " type=\"number\" name=\"pwm" + String(pin) + "\" min=\"0\" max=\"" + String(MAX_PWM) + "\" step=\"1\" value=\"" + String(pinValPWM) + "\">");
   client.println("</form>");
+  client.println("</td>");
+
+  // slider
+  client.println("<td>");
+  client.println("<div class=\"slidecontainer\">");
+  client.println("<input type = \"range\" min=\"0\" max=\"" + String(MAX_PWM) + "\" value=\"" + String(pinValPWM) + "\" class=\"slider\" id=\"range" + String(pin) + "\">");
+  client.println("</div>");
   client.println("</td>");
   client.println("</tr>");
 }
@@ -100,6 +143,24 @@ void setPinState(int pin, int pwmVal) {
 
 int readPinState(int pin) {
   return pinState[pin];
+}
+
+void sliderJS(WiFiClient client, int pin) {
+  String pinStr = String(pin);
+  String sliderName = "slider" + pinStr;
+  String inputBoxName = "inputBox" + pinStr;
+  String buttonName = "button" + pinStr;
+
+  client.println("<script>");
+  client.println("var " + sliderName + " = document.getElementById(\"range" + pinStr + "\");");
+  client.println("var " + inputBoxName + " = document.getElementById(\"numInput" + pinStr + "\");");
+  client.println("var " + buttonName + " = document.getElementById(\"" + buttonName + "\")");
+  client.println(inputBoxName + ".value = " + sliderName + ".value;");
+  client.println(sliderName + ".oninput = function() {" + inputBoxName + ".value = this.value; ");
+  client.println(inputBoxName + ".disabled = false;");
+  client.println("}");
+  client.println("</script>");
+
 }
 
 void switcher(String header, int pin) {
@@ -195,15 +256,20 @@ void loop() {
             client.println("<table style='width:100%'>");
             client.println("<tr>");
             client.println("<th>Thing</th>");
-            client.println("<th>Value</th>");
             client.println("<th>Toggle</th>");
             client.println("<th>Duty Cycle</th>");
+            client.println("<th></th>");
             client.println("</tr>");
             pinRow(client, 2);
             pinRow(client, 3);
             pinRow(client, PIN4);
             pinRow(client, 5);
             client.println("</table>");
+
+            sliderJS(client, 2);
+            sliderJS(client, 3);
+            sliderJS(client, PIN4);
+            sliderJS(client, 5);
             client.println("</body></html>");
 
             // The HTTP response ends with another blank line
