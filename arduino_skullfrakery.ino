@@ -114,10 +114,10 @@ void pinRow(WiFiClient client, int pin) {
 
   // on/off buttons
   if (pinValPWM == 0) {
-    client.println("<td><a href=\"/" + String(pin) + "/on\"><button id=\"button"+ String(pin) +"\" class=\"buttonOn\">ON</button></a></td>");
+    client.println("<td><a href=\"/" + String(pin) + "/on\"><button id=\"button" + String(pin) + "\" class=\"buttonOn\">ON</button></a></td>");
   } else {
     enableInput = ""; // TODO recolor input form
-    client.println("<td><a href=\"/" + String(pin) + "/off\"><button id=\"button" + String(pin) +"\" class=\"buttonOn buttonOff\">OFF</button></a></td>");
+    client.println("<td><a href=\"/" + String(pin) + "/off\"><button id=\"button" + String(pin) + "\" class=\"buttonOn buttonOff\">OFF</button></a></td>");
   }
 
   // raw text input
@@ -133,6 +133,16 @@ void pinRow(WiFiClient client, int pin) {
   client.println("<input type = \"range\" min=\"0\" max=\"" + String(MAX_PWM) + "\" value=\"" + String(pinValPWM) + "\" class=\"slider\" id=\"range" + String(pin) + "\">");
   client.println("</div>");
   client.println("</td>");
+
+  // enter button
+  String inputBoxVal = "inputBoxVal" + String(pin);
+  client.println("<td>");
+  client.println("<button onclick=\"function setit(){");
+  client.println("var " + inputBoxVal + " = document.getElementById('numInput" + String(pin) + "').value;");
+  client.println("window.location.href = '/?pwm" + String(pin) + "=' + " + inputBoxVal + ";");
+  client.println("};setit();\">ENTER</button>");
+  client.println("</td>");
+
   client.println("</tr>");
 }
 
@@ -258,6 +268,7 @@ void loop() {
             client.println("<th>Thing</th>");
             client.println("<th>Toggle</th>");
             client.println("<th>Duty Cycle</th>");
+            client.println("<th></th>");
             client.println("<th></th>");
             client.println("</tr>");
             pinRow(client, 2);
