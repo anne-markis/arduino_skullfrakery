@@ -3,13 +3,23 @@
 #define MAX_PWM 1023 // TODO redundant with PWMRANGE
 #define MIN_PWM 0
 
+#define RED_LED1 D4
+#define GREEN_LED1 D2
+#define YELLOW_LED1 D1
+#define WHITE_LED1 D8
+#define PIXEL_PIN D5
 #define PIN4 D2 // Kind of unnecessary but cool: https://github.com/esp8266/Arduino/blob/master/variants/nodemcu/pins_arduino.h
 #define NUM_PINS 16 // For pin state array
 
+// FAN PWM
+// DEHUMIDIFIER ANALOG
+// LEDs Super Serial
+// Modes: chill out mode, METAL MODE, thuper cool mode
+
 const String code_version = "v0.4.0";
 
-const char* ssid     = "LAN2.4";
-const char* password = "skookumchuck.10.18.2019";
+const char* ssid     = "Captains Log 2.4ghz";// "LAN2.4";
+const char* password = "RioGrande"; //"skookumchuck.10.18.2019";
 
 int pinState[NUM_PINS]; // TODO consider struct type instead of int
 
@@ -31,10 +41,11 @@ void setup() {
   Serial.begin(115200);
   // Initialize the output variables as outputs
   // Should be able to use pins 0-5, pins 6-11 are for connecting flash memory chip. 12-16 should also be free
-  pinMode(2, OUTPUT);
-  pinMode(3, OUTPUT);
-  pinMode(PIN4, OUTPUT);
-  pinMode(5, OUTPUT);
+  pinMode(RED_LED1, OUTPUT);
+  pinMode(GREEN_LED1, OUTPUT);
+  pinMode(YELLOW_LED1, OUTPUT);
+  pinMode(WHITE_LED1, OUTPUT);
+//  pinMode(PIXEL_PIN, OUTPUT);
 
   analogWriteRange(PWMRANGE);
 
@@ -105,12 +116,12 @@ void headerAndStyle(WiFiClient client) {
   client.println("</style><meta charset=\"UTF-8\"></head>");
 }
 
-void pinRow(WiFiClient client, int pin) {
+void pinRow(WiFiClient client, int pin, String label) {
   int pinValPWM = readPinState(pin);
 
   String enableInput = "disabled";
   client.println("<tr>");
-  client.println("<td>Pin " + String(pin) + "</td>");
+  client.println("<td>" + label + "</td>");
 
   // on/off buttons
   if (pinValPWM == 0) {
@@ -251,10 +262,11 @@ void loop() {
             client.println("Connection: close");
             client.println();
 
-            switcher(header, 2);
-            switcher(header, 3);
-            switcher(header, PIN4);
-            switcher(header, 5);
+            switcher(header, RED_LED1);
+            switcher(header, GREEN_LED1);
+            switcher(header, YELLOW_LED1);
+            switcher(header, WHITE_LED1);
+//            switcher(header, PIXEL_PIN);
 
             // Display the HTML web page
             headerAndStyle(client);
@@ -271,16 +283,18 @@ void loop() {
             client.println("<th></th>");
             client.println("<th></th>");
             client.println("</tr>");
-            pinRow(client, 2);
-            pinRow(client, 3);
-            pinRow(client, PIN4);
-            pinRow(client, 5);
+            pinRow(client, RED_LED1, "RED LED");
+            pinRow(client, GREEN_LED1, "GREEN LED");
+            pinRow(client, YELLOW_LED1, "YELLOW LED");
+            pinRow(client, WHITE_LED1, "WHITE LED");
+//            pinRow(client, PIXEL_PIN, "PIXELS");
             client.println("</table>");
 
-            sliderJS(client, 2);
-            sliderJS(client, 3);
-            sliderJS(client, PIN4);
-            sliderJS(client, 5);
+            sliderJS(client, RED_LED1);
+            sliderJS(client, GREEN_LED1);
+            sliderJS(client, YELLOW_LED1);
+            sliderJS(client, WHITE_LED1);
+//            sliderJS(client, PIXEL_PIN);
             client.println("</body></html>");
 
             // The HTTP response ends with another blank line
