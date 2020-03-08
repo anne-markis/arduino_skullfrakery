@@ -29,6 +29,7 @@ const uint32_t LED_RED = strip.Color(255, 0, 0);
 const uint32_t LED_BLUE = strip.Color(0, 0, 255);
 const uint32_t LED_GREEN = strip.Color(0, 255, 0);
 const uint32_t LED_NEUTRAL = strip.Color(255, 255, 255);
+const uint32_t LED_OFF = strip.Color(0, 0, 0);
 
 // FAN PWM
 // DEHUMIDIFIER ANALOG
@@ -41,6 +42,10 @@ const char* ssid     = "Captains Log 2.4ghz";// "LAN2.4";
 const char* password = "RioGrande"; //"skookumchuck.10.18.2019";
 
 int pinState[NUM_PINS]; // TODO consider struct type instead of int
+
+String COLOR_STATE_EXTERNAL = ""; // User defined global color state
+String COLOR_STATE_INTERNAL = ""; // Internal color state temporary
+String BLINK_STYLE_STATE = "";
 
 WiFiServer server(80);
 
@@ -233,14 +238,17 @@ void switcher(String header, int pin) {
   }
 }
 
+// TODO maybe move this into the regular loop so no need to infiniloop, store collor and sytle outside
 void ledWheelSwitcher(String header) {
   bool isWheelColorSet = header.indexOf("pixel_color") >= 0 && header.indexOf("pixel_color") < 100;
   bool isWheelBlinkSet = header.indexOf("pixel_blink") >= 0 && header.indexOf("pixel_blink") < 100;
 
-  String color = "GREsEN";
-  String blinkStyle = "STEADY";
+  String color = "RED";
+  String blinkStyle = "BLINK";
 
-  setLEDWheel(color, blinkStyle);
+  COLOR_STATE_EXTERNAL = color;
+  BLINK_STYLE_STATE = blinkStyle;
+
   //
   //  if (isWheelColorSet || isWheelBlinkSet) { // biggest mother fucking bitch in my life
   //    const char* headerCStr = header.c_str();
@@ -279,10 +287,20 @@ void ledWheelSwitcher(String header) {
 }
 
 void setLEDWheel(String color, String style) {
-  Serial.println("Setting led wheel to " + color + " and style " + style);
+  long now = millis();
+
+//  Serial.println("?? " + String(now) + " - " + String(previousTime));
+  if (millis() - previousTime < 500) { // TODO global constant
+    return;
+  }
+//  Serial.println("Setting led wheel to " + color + " and style " + style);
   if (style == "STEADY") {
     uint32_t colorInt = getColor(color);
-    colorWipe(colorInt, 0);
+    colorWipeLED(colorInt);
+  }
+  if (style == "BLINK") {
+    uint32_t colorInt = getColor(color);
+    blinkLED(colorInt, 500);
   }
 }
 
@@ -302,11 +320,30 @@ uint32_t getColor(String color) { // TODO to uppercase
   return LED_NEUTRAL;
 }
 
-void colorWipe(uint32_t color, int wait) {
-  for (int i = 0; i < strip.numPixels(); i++) { // For each pixel in strip...
-    strip.setPixelColor(i, color);         //  Set pixel's color (in RAM)
-    strip.show();                          //  Update strip to match
-    delay(wait);                           //  Pause for a moment
+void colorWipeLED(uint32_t color) {
+  for (int i = 0; i < strip.numPixels(); i++) {
+    strip.setPixelColor(i, color);
+  }
+  strip.show();
+}
+
+// TODO
+void blinkLED(uint32_t color, int wait) {
+  if (millis() - previousTime >= wait) {
+    if (COLOR_STATE_INTERNAL == COLOR_STATE_EXTERNAL) { // is on, time to turn off
+      COLOR_STATE_INTERNAL = LED_OFF;
+      for (int i = 0; i < strip.numPixels(); i++) {
+        strip.setPixelColor(i, LED_OFF);
+        strip.show();
+      }
+    } else {
+      COLOR_STATE_INTERNAL = COLOR_STATE_EXTERNAL;
+      for (int i = 0; i < strip.numPixels(); i++) {
+        strip.setPixelColor(i, color);
+        strip.show();
+      }
+    }
+    previousTime =  millis(); // TODO dodgy
   }
 }
 
@@ -339,12 +376,14 @@ void timerJS(WiFiClient client, int pin) {
 
 void loop() {
   WiFiClient client = server.available();   // Listen for incoming clients
+  currentTime = millis();
+//  previousTime = 0;
 
   if (client) {                             // If a new client connects,
     Serial.println("New Client.");          // print a message out in the serial port
     String currentLine = "";                // make a String to hold incoming data from the client
-    currentTime = millis();
     previousTime = currentTime;
+
     while (client.connected() && currentTime - previousTime <= timeoutTime) { // loop while the client's connected
       currentTime = millis();
       if (client.available()) {             // if there's bytes to read from the client,
@@ -454,7 +493,7 @@ void loop() {
           currentLine += c;      // add it to the end of the currentLine
         }
       }
-    }
+    } // while loop
     // Clear the header variable
     header = "";
     // Close the connection
@@ -462,4 +501,5 @@ void loop() {
     Serial.println("Client disconnected.");
     Serial.println("");
   }
+  setLEDWheel(COLOR_STATE_EXTERNAL, BLINK_STYLE_STATE); //???
 }
