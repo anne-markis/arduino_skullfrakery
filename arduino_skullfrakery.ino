@@ -1,4 +1,8 @@
 #include <ESP8266WiFi.h>
+#include <Adafruit_NeoPixel.h>
+#ifdef __AVR__
+#include <avr/power.h>
+#endif
 
 #define MAX_PWM 1023 // TODO redundant with PWMRANGE
 #define MIN_PWM 0
@@ -11,12 +15,27 @@
 #define PIN4 D2 // Kind of unnecessary but cool: https://github.com/esp8266/Arduino/blob/master/variants/nodemcu/pins_arduino.h
 #define NUM_PINS 16 // For pin state array
 
+// Parameter 1 = number of pixels in strip
+// Parameter 2 = Arduino pin number (most are valid)
+// Parameter 3 = pixel type flags, add together as needed:
+//   NEO_KHZ800  800 KHz bitstream (most NeoPixel products w/WS2812 LEDs)
+//   NEO_KHZ400  400 KHz (classic 'v1' (not v2) FLORA pixels, WS2811 drivers)
+//   NEO_GRB     Pixels are wired for GRB bitstream (most NeoPixel products)
+//   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
+//   NEO_RGBW    Pixels are wired for RGBW bitstream (NeoPixel RGBW products)
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(7, PIXEL_PIN, NEO_GRB + NEO_KHZ800);
+
+const uint32_t LED_RED = strip.Color(255, 0, 0);
+const uint32_t LED_BLUE = strip.Color(0, 0, 255);
+const uint32_t LED_GREEN = strip.Color(0, 255, 0);
+const uint32_t LED_NEUTRAL = strip.Color(255, 255, 255);
+
 // FAN PWM
 // DEHUMIDIFIER ANALOG
 // LEDs Super Serial
 // Modes: chill out mode, METAL MODE, thuper cool mode
 
-const String code_version = "v0.4.0";
+const String code_version = "v0.5.0";
 
 const char* ssid     = "Captains Log 2.4ghz";// "LAN2.4";
 const char* password = "RioGrande"; //"skookumchuck.10.18.2019";
@@ -45,7 +64,7 @@ void setup() {
   pinMode(GREEN_LED1, OUTPUT);
   pinMode(YELLOW_LED1, OUTPUT);
   pinMode(WHITE_LED1, OUTPUT);
-//  pinMode(PIXEL_PIN, OUTPUT);
+  //  pinMode(PIXEL_PIN, OUTPUT);
 
   analogWriteRange(PWMRANGE);
 
@@ -63,6 +82,10 @@ void setup() {
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
   server.begin();
+
+  strip.begin();
+  strip.setBrightness(150); // TODO?
+  strip.show(); // Initialize all pixels to 'off'
 }
 
 void headerAndStyle(WiFiClient client) {
@@ -210,6 +233,83 @@ void switcher(String header, int pin) {
   }
 }
 
+void ledWheelSwitcher(String header) {
+  bool isWheelColorSet = header.indexOf("pixel_color") >= 0 && header.indexOf("pixel_color") < 100;
+  bool isWheelBlinkSet = header.indexOf("pixel_blink") >= 0 && header.indexOf("pixel_blink") < 100;
+
+  String color = "GREsEN";
+  String blinkStyle = "STEADY";
+
+  setLEDWheel(color, blinkStyle);
+  //
+  //  if (isWheelColorSet || isWheelBlinkSet) { // biggest mother fucking bitch in my life
+  //    const char* headerCStr = header.c_str();
+  //    char* headDup = strdup(headerCStr); // cannot strtok on a const char*
+  //
+  //    int i = 0;
+  //    String urlParts[1000];
+  //    bool saveNext = false;
+  //
+  //    char* token = strtok(headDup, "?&= ");
+  //    Serial.println("Token " + String(token));
+  //
+  //    while (token != NULL) {
+  //      if (saveNext) {
+  //        urlParts[i] = String(token);
+  //        i++;
+  //      }
+  //      saveNext = false;
+  //      if (String(token) == "pixel_color" || String(token) == "pixel_blink") {
+  //
+  //        urlParts[i] = String(token);
+  //        i++;
+  //        saveNext = true;
+  //      }
+  //      Serial.println("Token " + String(token));
+  //
+  //      token = strtok(NULL, "?&= ");
+  //    }
+  //
+  //    // TODO delete
+  //    //    int j = 0;
+  //    //    for (j = 0; j < 8; j++) {
+  //    //      Serial.println("VALE: " + String(urlParts[j]));
+  //    //    }
+  //  }
+}
+
+void setLEDWheel(String color, String style) {
+  Serial.println("Setting led wheel to " + color + " and style " + style);
+  if (style == "STEADY") {
+    uint32_t colorInt = getColor(color);
+    colorWipe(colorInt, 0);
+  }
+}
+
+
+uint32_t getColor(String color) { // TODO to uppercase
+  if (color == "RED") {
+    return LED_RED;
+  }
+  if (color == "BLUE") {
+    return LED_BLUE;
+  }
+
+  if (color == "GREEN") {
+    return LED_GREEN;
+  }
+
+  return LED_NEUTRAL;
+}
+
+void colorWipe(uint32_t color, int wait) {
+  for (int i = 0; i < strip.numPixels(); i++) { // For each pixel in strip...
+    strip.setPixelColor(i, color);         //  Set pixel's color (in RAM)
+    strip.show();                          //  Update strip to match
+    delay(wait);                           //  Pause for a moment
+  }
+}
+
 void pinDebug(int pin, int meta) {
   int analogReadVal = readPinState(pin);
   Serial.println(String(meta) + " ====> " + String(pin) + ": a(" + String(analogReadVal) + ")");
@@ -266,7 +366,7 @@ void loop() {
             switcher(header, GREEN_LED1);
             switcher(header, YELLOW_LED1);
             switcher(header, WHITE_LED1);
-//            switcher(header, PIXEL_PIN);
+            ledWheelSwitcher(header);
 
             // Display the HTML web page
             headerAndStyle(client);
@@ -287,14 +387,60 @@ void loop() {
             pinRow(client, GREEN_LED1, "GREEN LED");
             pinRow(client, YELLOW_LED1, "YELLOW LED");
             pinRow(client, WHITE_LED1, "WHITE LED");
-//            pinRow(client, PIXEL_PIN, "PIXELS");
+            //            pinRow(client, PIXEL_PIN, "PIXELS");
+            client.println("</table>");
+
+            client.println("<hr/>");
+
+            // LED WHEEL MODE Table
+            client.println("<table style='width:100%'>");
+            client.println("<tr>");
+            client.println("<th>LED</th>");
+            client.println("<th>Brightness</th>");
+            client.println("<th>Color</th>");
+            client.println("<th>Mode</th>");
+            client.println("<th></th>");
+            client.println("</tr>");
+
+            client.println("<tr>");
+            client.println("<td>Pixel</td>"); // identifier
+            client.println("<td>150</td>"); // Brightness TODO slider
+            client.println("<td>"); // Color
+            client.println("<select id=\"led_color\" name=\"led_color\">");
+            client.println("<option value=\"RED\">Red</option>");
+            client.println("<option value=\"BLUE\">Blue</option>");
+            client.println("<option value=\"RAINBOW\">Rainbow</option>");
+            client.println("</select>");
+            client.println("</td>");
+            client.println("<td>"); // Blink style
+            client.println("<select id=\"led_blink_style\" name=\"led_blink_style\">");
+            client.println("<option value=\"STEADY\">Steady On</option>");
+            client.println("<option value=\"BLINK\">Blink</option>");
+            client.println("<option value=\"THEATRE_CRAWL\">Theatre Crawl</option>");
+            client.println("</select>");
+            client.println("</td>");
+
+            // enter button
+            String pixelColorInputBox = "pixelColorInputBox1";
+            String pixelBlinkInputBox = "pixelBlinkInputBox1";
+
+            client.println("<td>");
+            client.println("<button onclick=\"function setit(){");
+            client.println("var " + pixelColorInputBox + " = document.getElementById('led_color').value;");
+            client.println("var " + pixelBlinkInputBox + " = document.getElementById('led_blink_style').value;");
+            client.println("window.location.href = '/?pixel_color=' + " + pixelColorInputBox + " + '&pixel_blink=' + " + pixelBlinkInputBox + ";");
+            client.println("};setit();\">ENTER</button>");
+            client.println("</td>");
+
+            client.println("</tr>");
+
             client.println("</table>");
 
             sliderJS(client, RED_LED1);
             sliderJS(client, GREEN_LED1);
             sliderJS(client, YELLOW_LED1);
             sliderJS(client, WHITE_LED1);
-//            sliderJS(client, PIXEL_PIN);
+            //            sliderJS(client, PIXEL_PIN);
             client.println("</body></html>");
 
             // The HTTP response ends with another blank line
