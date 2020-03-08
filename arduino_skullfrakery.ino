@@ -28,6 +28,8 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(7, PIXEL_PIN, NEO_GRB + NEO_KHZ800);
 const uint32_t LED_RED = strip.Color(255, 0, 0);
 const uint32_t LED_BLUE = strip.Color(0, 0, 255);
 const uint32_t LED_GREEN = strip.Color(0, 255, 0);
+const uint32_t LED_PURPLE = strip.Color(128, 0, 128);
+const uint32_t LED_CYAN = strip.Color(0, 255, 255);
 const uint32_t LED_NEUTRAL = strip.Color(255, 255, 255);
 const uint32_t LED_OFF = strip.Color(0, 0, 0);
 
@@ -69,7 +71,6 @@ void setup() {
   pinMode(GREEN_LED1, OUTPUT);
   pinMode(YELLOW_LED1, OUTPUT);
   pinMode(WHITE_LED1, OUTPUT);
-  //  pinMode(PIXEL_PIN, OUTPUT);
 
   analogWriteRange(PWMRANGE);
 
@@ -243,8 +244,8 @@ void ledWheelSwitcher(String header) {
   bool isWheelColorSet = header.indexOf("pixel_color") >= 0 && header.indexOf("pixel_color") < 100;
   bool isWheelBlinkSet = header.indexOf("pixel_blink") >= 0 && header.indexOf("pixel_blink") < 100;
 
-  String color = "RED";
-  String blinkStyle = "BLINK";
+  String color = "CYAN";
+  String blinkStyle = "LOOP";
 
   COLOR_STATE_EXTERNAL = color;
   BLINK_STYLE_STATE = blinkStyle;
@@ -289,11 +290,9 @@ void ledWheelSwitcher(String header) {
 void setLEDWheel(String color, String style) {
   long now = millis();
 
-//  Serial.println("?? " + String(now) + " - " + String(previousTime));
   if (millis() - previousTime < 500) { // TODO global constant
     return;
   }
-//  Serial.println("Setting led wheel to " + color + " and style " + style);
   if (style == "STEADY") {
     uint32_t colorInt = getColor(color);
     colorWipeLED(colorInt);
@@ -302,13 +301,19 @@ void setLEDWheel(String color, String style) {
     uint32_t colorInt = getColor(color);
     blinkLED(colorInt, 500);
   }
+
+  if (style == "LOOP") {
+    uint32_t colorInt = getColor(color);
+    loopLED(colorInt);
+  }
 }
 
 
-uint32_t getColor(String color) { // TODO to uppercase
+uint32_t getColor(String color) { // TODO to uppercase also use global var
   if (color == "RED") {
-    return LED_RED;
+    return LED_RED; // TODO rename these to use RGB_ prefix
   }
+
   if (color == "BLUE") {
     return LED_BLUE;
   }
@@ -317,8 +322,21 @@ uint32_t getColor(String color) { // TODO to uppercase
     return LED_GREEN;
   }
 
+  if (color == "PURPLE") {
+    return LED_PURPLE;
+  }
+
+  if (color == "CYAN") {
+    return LED_CYAN;
+  }
+
+  if (color == "WHITE" ) {
+    return LED_NEUTRAL; // note not true white
+  }
+
   return LED_NEUTRAL;
 }
+
 
 void colorWipeLED(uint32_t color) {
   for (int i = 0; i < strip.numPixels(); i++) {
@@ -327,7 +345,40 @@ void colorWipeLED(uint32_t color) {
   strip.show();
 }
 
-// TODO
+void loopLED(uint32_t color) {
+  int fadeVal = 0, fadeMax = 100;
+  for (uint32_t firstPixelHue = 0; firstPixelHue < 65536; //  Color wheel has a range of 65536
+       firstPixelHue += 256) {
+
+    for (int i = 0; i < strip.numPixels(); i++) { // For each pixel in strip...
+
+      // Offset pixel hue by an amount to make one full revolution of the
+      // color wheel (range of 65536) along the length of the strip
+      // (strip.numPixels() steps):
+      uint32_t pixelHue = firstPixelHue + (i * 65536L / strip.numPixels());
+
+      // strip.ColorHSV() can take 1 or 3 arguments: a hue (0 to 65535) or
+      // optionally add saturation and value (brightness) (each 0 to 255).
+      // Here we're using just the three-argument variant, though the
+      // second value (saturation) is a constant 255.
+      strip.setPixelColor(i, strip.gamma32(strip.ColorHSV(pixelHue, 255,
+                                           255 * fadeVal / fadeMax)));
+    }
+
+    strip.show();
+    // has a wait of 3 ms
+
+    if (firstPixelHue < 65536) {                             // First loop,
+      if (fadeVal < fadeMax) fadeVal++;                      // fade in
+    } else if (firstPixelHue >= ((1 - 1) * 65536)) { // Last loop,
+      if (fadeVal > 0) fadeVal--;                            // fade out
+    } else {
+      fadeVal = fadeMax; // Interim loop, make sure fade is at max
+    }
+  }
+}
+
+
 void blinkLED(uint32_t color, int wait) {
   if (millis() - previousTime >= wait) {
     if (COLOR_STATE_INTERNAL == COLOR_STATE_EXTERNAL) { // is on, time to turn off
@@ -377,7 +428,7 @@ void timerJS(WiFiClient client, int pin) {
 void loop() {
   WiFiClient client = server.available();   // Listen for incoming clients
   currentTime = millis();
-//  previousTime = 0;
+  //  previousTime = 0;
 
   if (client) {                             // If a new client connects,
     Serial.println("New Client.");          // print a message out in the serial port
@@ -426,7 +477,6 @@ void loop() {
             pinRow(client, GREEN_LED1, "GREEN LED");
             pinRow(client, YELLOW_LED1, "YELLOW LED");
             pinRow(client, WHITE_LED1, "WHITE LED");
-            //            pinRow(client, PIXEL_PIN, "PIXELS");
             client.println("</table>");
 
             client.println("<hr/>");
@@ -442,12 +492,15 @@ void loop() {
             client.println("</tr>");
 
             client.println("<tr>");
-            client.println("<td>Pixel</td>"); // identifier
+            client.println("<td>NeoPixel</td>"); // identifier
             client.println("<td>150</td>"); // Brightness TODO slider
             client.println("<td>"); // Color
             client.println("<select id=\"led_color\" name=\"led_color\">");
             client.println("<option value=\"RED\">Red</option>");
             client.println("<option value=\"BLUE\">Blue</option>");
+            client.println("<option value=\"WHITE\">White</option>");
+            client.println("<option value=\"PURPLE\">Purple</option>");
+            client.println("<option value=\"CYAN\">Cyan</option>");
             client.println("<option value=\"RAINBOW\">Rainbow</option>");
             client.println("</select>");
             client.println("</td>");
