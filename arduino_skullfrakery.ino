@@ -239,52 +239,55 @@ void switcher(String header, int pin) {
   }
 }
 
+
+
 // TODO maybe move this into the regular loop so no need to infiniloop, store collor and sytle outside
 void ledWheelSwitcher(String header) {
   bool isWheelColorSet = header.indexOf("pixel_color") >= 0 && header.indexOf("pixel_color") < 100;
   bool isWheelBlinkSet = header.indexOf("pixel_blink") >= 0 && header.indexOf("pixel_blink") < 100;
 
-  String color = "CYAN";
-  String blinkStyle = "LOOP";
+  String color = "";
+  String blinkStyle = "";
 
-  COLOR_STATE_EXTERNAL = color;
-  BLINK_STYLE_STATE = blinkStyle;
 
-  //
-  //  if (isWheelColorSet || isWheelBlinkSet) { // biggest mother fucking bitch in my life
-  //    const char* headerCStr = header.c_str();
-  //    char* headDup = strdup(headerCStr); // cannot strtok on a const char*
-  //
-  //    int i = 0;
-  //    String urlParts[1000];
-  //    bool saveNext = false;
-  //
-  //    char* token = strtok(headDup, "?&= ");
-  //    Serial.println("Token " + String(token));
-  //
-  //    while (token != NULL) {
-  //      if (saveNext) {
-  //        urlParts[i] = String(token);
-  //        i++;
-  //      }
-  //      saveNext = false;
-  //      if (String(token) == "pixel_color" || String(token) == "pixel_blink") {
-  //
-  //        urlParts[i] = String(token);
-  //        i++;
-  //        saveNext = true;
-  //      }
-  //      Serial.println("Token " + String(token));
-  //
-  //      token = strtok(NULL, "?&= ");
-  //    }
-  //
-  //    // TODO delete
-  //    //    int j = 0;
-  //    //    for (j = 0; j < 8; j++) {
-  //    //      Serial.println("VALE: " + String(urlParts[j]));
-  //    //    }
-  //  }
+
+  if (isWheelColorSet || isWheelBlinkSet) { // biggest mother fucking bitch in my life
+    const char* headerCStr = header.c_str();
+    char* headDup = strdup(headerCStr); // cannot strtok on a const char*
+
+    char headSub[100];
+    strncpy(headSub, headDup, 100); // get first like 100 characters, avoid REFERER TODO
+
+    bool colorNext = false;
+    bool styleNext = false;
+    char* token = strtok(headSub, "?&= ");
+    while (token != NULL) {
+      if (colorNext) {
+        color = String(token);
+      }
+      if (styleNext) {
+        blinkStyle = String(token);
+      }
+      colorNext = false;
+      styleNext = false;
+
+      if (String(token) == "pixel_color") {
+        colorNext = true;
+      }
+      if (String(token) == "pixel_blink") {
+        styleNext = true;
+      }
+
+      token = strtok(NULL, "?&= ");
+    } // while
+
+    COLOR_STATE_EXTERNAL = color;
+    BLINK_STYLE_STATE = blinkStyle;
+
+    Serial.println("Color: " + COLOR_STATE_EXTERNAL);
+    Serial.println("Blink: " + BLINK_STYLE_STATE);
+
+  } //  if (isWheelColorSet || isWheelBlinkSet)
 }
 
 void setLEDWheel(String color, String style) {
@@ -302,8 +305,8 @@ void setLEDWheel(String color, String style) {
     blinkLED(colorInt, 500);
   }
 
-  if (style == "LOOP") {
-    uint32_t colorInt = getColor(color);
+  if (style == "RAINBOW_LOOP") {
+    uint32_t colorInt = getColor(color); // TODO don tneed
     loopLED(colorInt);
   }
 }
@@ -346,27 +349,23 @@ void colorWipeLED(uint32_t color) {
 }
 
 void loopLED(uint32_t color) {
+
+
   int fadeVal = 0, fadeMax = 100;
   for (uint32_t firstPixelHue = 0; firstPixelHue < 65536; //  Color wheel has a range of 65536
        firstPixelHue += 256) {
 
     for (int i = 0; i < strip.numPixels(); i++) { // For each pixel in strip...
-
-      // Offset pixel hue by an amount to make one full revolution of the
-      // color wheel (range of 65536) along the length of the strip
-      // (strip.numPixels() steps):
       uint32_t pixelHue = firstPixelHue + (i * 65536L / strip.numPixels());
-
-      // strip.ColorHSV() can take 1 or 3 arguments: a hue (0 to 65535) or
-      // optionally add saturation and value (brightness) (each 0 to 255).
-      // Here we're using just the three-argument variant, though the
-      // second value (saturation) is a constant 255.
       strip.setPixelColor(i, strip.gamma32(strip.ColorHSV(pixelHue, 255,
                                            255 * fadeVal / fadeMax)));
     }
 
     strip.show();
-    // has a wait of 3 ms
+//    if (millis() - previousTime < 30) {
+//      strip.show();
+//    }
+    // had a wait of 3 ms
 
     if (firstPixelHue < 65536) {                             // First loop,
       if (fadeVal < fadeMax) fadeVal++;                      // fade in
@@ -501,14 +500,13 @@ void loop() {
             client.println("<option value=\"WHITE\">White</option>");
             client.println("<option value=\"PURPLE\">Purple</option>");
             client.println("<option value=\"CYAN\">Cyan</option>");
-            client.println("<option value=\"RAINBOW\">Rainbow</option>");
             client.println("</select>");
             client.println("</td>");
             client.println("<td>"); // Blink style
             client.println("<select id=\"led_blink_style\" name=\"led_blink_style\">");
             client.println("<option value=\"STEADY\">Steady On</option>");
             client.println("<option value=\"BLINK\">Blink</option>");
-            client.println("<option value=\"THEATRE_CRAWL\">Theatre Crawl</option>");
+            client.println("<option value=\"RAINBOW_LOOP\">Rainbow Loop</option>");
             client.println("</select>");
             client.println("</td>");
 
@@ -554,5 +552,5 @@ void loop() {
     Serial.println("Client disconnected.");
     Serial.println("");
   }
-  setLEDWheel(COLOR_STATE_EXTERNAL, BLINK_STYLE_STATE); //???
+  setLEDWheel(COLOR_STATE_EXTERNAL, BLINK_STYLE_STATE);
 }
