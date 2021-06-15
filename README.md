@@ -9,3 +9,6 @@
 * Load arduino_skullfrakery.ino into IDE, verify and upload on to board
 * Open Serial Monitor (115200 baud)
 * Go to IP printed in monitor
+
+  https://www.arduino.cc/en/tutorial/PWM
+  https://www.arduino.cc/en/Tutorial/SecretsOfArduinoPWM
